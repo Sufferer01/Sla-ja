@@ -8,16 +8,30 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Georgia:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    body {
+    html, body {
+      height: 100%;
       margin: 0;
+      padding: 0;
+    }
+    body {
       min-height: 100vh;
       font-family: 'Georgia', serif;
-      background: linear-gradient(135deg, #f8e1ef 0%, #e3d6f5 50%, #fff 100%);
+      background: linear-gradient(-45deg, #f8e1ef, #e3d6f5, #fff, #f8e1ef, #f2e4f7, #f5e9f2);
+      background-size: 400% 400%;
+      animation: gradientBG 18s ease-in-out infinite;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       overflow-x: hidden;
+      transition: background 1s;
+    }
+    @keyframes gradientBG {
+      0% {background-position: 0% 50%;}
+      25% {background-position: 50% 100%;}
+      50% {background-position: 100% 50%;}
+      75% {background-position: 50% 0%;}
+      100% {background-position: 0% 50%;}
     }
     header {
       margin-top: 32px;
@@ -62,12 +76,15 @@
       object-fit: cover;
       border-radius: 32px;
       opacity: 0;
-      transition: opacity 1.2s ease;
+      pointer-events: none;
+      transition: opacity 1.2s;
       z-index: 1;
     }
     .slide-image.active {
       opacity: 1;
       z-index: 2;
+      pointer-events: auto;
+      transition: opacity 1.2s;
     }
     .slide-text {
       position: absolute;
@@ -90,6 +107,7 @@
     }
     .slide-text.active {
       opacity: 1;
+      transition: opacity 1.2s;
     }
     .music-control {
       position: fixed;
@@ -139,28 +157,35 @@
     <span id="musicLabel">Tocar música</span>
   </button>
   <audio id="bgMusic" loop>
-    <source src="musica.mp3" type="audio/mpeg">
+    <source src="musicas/musica.mp3" type="audio/mpeg">
     Seu navegador não suporta áudio HTML5.
   </audio>
   <script>
+    // Troca de foto: a cada 6 segundos (ajuste se quiser)
+    const PHOTO_INTERVAL = 6000;
+    // Troca de texto: a cada 60 segundos
+    const TEXT_INTERVAL = 60000;
+
     const slides = [
-      { img: "img1.jpg", text: "Mãe, você é o abraço que acolhe e o sorriso que conforta. Cada momento ao seu lado é um tesouro eterno." },
-      { img: "img2.jpg", text: "Nas pequenas coisas do dia a dia, encontramos o verdadeiro significado do amor incondicional." },
-      { img: "img3.jpg", text: "Seu carinho transforma dias comuns em lembranças inesquecíveis. Obrigado por cada gesto de amor." },
-      { img: "img4.jpg", text: "As memórias que criamos juntos são a prova do laço indestrutível entre mãe e filho(a)." },
-      { img: "img5.jpg", text: "Entre risos e lágrimas, aprendemos que o amor de mãe é a luz que guia nossos passos." },
-      { img: "img6.jpg", text: "Você nos ensinou que a maior força está na delicadeza de um carinho e na doçura de uma palavra." },
-      { img: "img7.jpg", text: "Em cada conquista, seu apoio silencioso foi o que nos impulsionou a ir além." },
-      { img: "img8.jpg", text: "O tempo passa, mas cada abraço seu permanece guardado em nosso coração." },
-      { img: "img9.jpg", text: "Seus conselhos ecoam em nossos pensamentos, mostrando que amor de mãe nunca se apaga." },
-      { img: "img10.jpg", text: "Celebrar você é celebrar a vida, a esperança e a certeza de que sempre teremos um lar no seu coração." }
+      { img: "imagens/img1.jpg", text: "Mãe, você é o abraço que acolhe e o sorriso que conforta. Cada momento ao seu lado é um tesouro eterno." },
+      { img: "imagens/img2.jpg", text: "Nas pequenas coisas do dia a dia, encontramos o verdadeiro significado do amor incondicional." },
+      { img: "imagens/img3.jpg", text: "Seu carinho transforma dias comuns em lembranças inesquecíveis. Obrigado por cada gesto de amor." },
+      { img: "imagens/img4.jpg", text: "As memórias que criamos juntos são a prova do laço indestrutível entre mãe e filho(a)." },
+      { img: "imagens/img5.jpg", text: "Entre risos e lágrimas, aprendemos que o amor de mãe é a luz que guia nossos passos." },
+      { img: "imagens/img6.jpg", text: "Você nos ensinou que a maior força está na delicadeza de um carinho e na doçura de uma palavra." },
+      { img: "imagens/img7.jpg", text: "Em cada conquista, seu apoio silencioso foi o que nos impulsionou a ir além." },
+      { img: "imagens/img8.jpg", text: "O tempo passa, mas cada abraço seu permanece guardado em nosso coração." },
+      { img: "imagens/img9.jpg", text: "Seus conselhos ecoam em nossos pensamentos, mostrando que amor de mãe nunca se apaga." },
+      { img: "imagens/img10.jpg", text: "Celebrar você é celebrar a vida, a esperança e a certeza de que sempre teremos um lar no seu coração." }
     ];
 
     const gallery = document.getElementById('gallery');
-    let currentIndex = 0;
+    let photoIndex = 0;
+    let textIndex = 0;
     let images = [];
-    let texts = [];
+    let textDiv = null;
 
+    // Carregar todas as imagens no DOM (para fade suave)
     slides.forEach((slide, i) => {
       const img = document.createElement('img');
       img.src = slide.img;
@@ -169,24 +194,39 @@
       if(i === 0) img.classList.add('active');
       gallery.appendChild(img);
       images.push(img);
-
-      const textDiv = document.createElement('div');
-      textDiv.className = 'slide-text';
-      textDiv.textContent = slide.text;
-      if(i === 0) textDiv.classList.add('active');
-      gallery.appendChild(textDiv);
-      texts.push(textDiv);
     });
 
-    function showSlide(idx) {
+    // Único campo de texto (sobrepõe as imagens)
+    textDiv = document.createElement('div');
+    textDiv.className = 'slide-text active';
+    textDiv.textContent = slides[0].text;
+    gallery.appendChild(textDiv);
+
+    // Função para trocar foto (mas manter texto)
+    function showPhoto(idx) {
       images.forEach((img, i) => img.classList.toggle('active', i === idx));
-      texts.forEach((txt, i) => txt.classList.toggle('active', i === idx));
     }
 
+    // Função para trocar texto (mas manter foto)
+    function showText(idx) {
+      textDiv.classList.remove('active');
+      setTimeout(() => {
+        textDiv.textContent = slides[idx].text;
+        textDiv.classList.add('active');
+      }, 500); // fade out antes de mudar texto
+    }
+
+    // Trocar foto continuamente
     setInterval(() => {
-      currentIndex = (currentIndex + 1) % slides.length;
-      showSlide(currentIndex);
-    }, 90000); // 1min30s = 90000ms
+      photoIndex = (photoIndex + 1) % slides.length;
+      showPhoto(photoIndex);
+    }, PHOTO_INTERVAL);
+
+    // Trocar texto a cada 1 min
+    setInterval(() => {
+      textIndex = (textIndex + 1) % slides.length;
+      showText(textIndex);
+    }, TEXT_INTERVAL);
 
     // Música de fundo
     const musicBtn = document.getElementById('musicBtn');
@@ -212,6 +252,7 @@
 
     musicBtn.onclick = () => setMusicState(!isPlaying);
 
+    // Para evitar bloqueio automático em navegadores
     document.body.addEventListener('touchstart', () => {
       if(isPlaying && bgMusic.paused) bgMusic.play();
     }, {once:true});
